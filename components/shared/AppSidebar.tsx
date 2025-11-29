@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { createClient } from '@/lib/supabase/client'
 import { Profile } from '@/lib/types'
-import { Clock, LayoutDashboard, CalendarDays, LogOut, ChevronUp } from 'lucide-react'
+import { Clock, LayoutDashboard, CalendarDays, LogOut, ChevronUp, History } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -53,6 +53,11 @@ export function AppSidebar({ profile }: AppSidebarProps) {
             title: 'Dashboard',
             url: '/dashboard',
             icon: LayoutDashboard,
+          },
+          {
+            title: 'Lịch sử',
+            url: '/audit',
+            icon: History,
           },
         ]
       : []),

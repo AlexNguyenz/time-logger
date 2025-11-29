@@ -15,8 +15,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { DayPicker } from 'react-day-picker'
-import { format, startOfMonth, endOfMonth, isSameDay } from 'date-fns'
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+  addMonths,
+  subMonths,
+} from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Clock, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -25,6 +35,8 @@ import { cn } from '@/lib/utils'
 interface LoggerContentProps {
   userId: string
 }
+
+const WEEKDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
 
 export function LoggerContent({ userId }: LoggerContentProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -139,28 +151,25 @@ export function LoggerContent({ userId }: LoggerContentProps) {
     }
   }
 
-  const goToPreviousMonth = () => {
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
-  }
-
-  const goToNextMonth = () => {
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
-  }
-
-  const goToToday = () => {
-    setCurrentMonth(new Date())
-  }
+  // Generate calendar days
+  const monthStart = startOfMonth(currentMonth)
+  const monthEnd = endOfMonth(currentMonth)
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 })
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
+  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
 
   const totalHours = logs.reduce((sum, log) => sum + Number(log.hours), 0)
   const daysLogged = logs.length
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Time Logger</h1>
         <p className="text-muted-foreground">Ghi nhận thời gian làm việc hàng ngày</p>
       </div>
 
+      {/* Stats */}
       <div className="grid gap-4 grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
@@ -184,84 +193,115 @@ export function LoggerContent({ userId }: LoggerContentProps) {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">
+      {/* Calendar */}
+      <Card className="overflow-hidden">
+        {/* Calendar Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold capitalize">
               {format(currentMonth, 'MMMM yyyy', { locale: vi })}
-            </CardTitle>
-            <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" onClick={goToPreviousMonth}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={goToToday}>
-                Hôm nay
-              </Button>
-              <Button variant="outline" size="sm" onClick={goToNextMonth}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setCurrentMonth(new Date())}
+            >
+              Hôm nay
+            </Button>
           </div>
-        </CardHeader>
-        <CardContent>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+          >
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center h-96">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <DayPicker
-              mode="single"
-              month={currentMonth}
-              onMonthChange={setCurrentMonth}
-              locale={vi}
-              showOutsideDays={false}
-              hideNavigation
-              className="w-full"
-              classNames={{
-                months: 'w-full',
-                month: 'w-full',
-                month_caption: 'hidden',
-                weekdays: 'flex w-full',
-                weekday: 'text-muted-foreground flex-1 font-normal text-[0.8rem] text-center py-2',
-                week: 'flex w-full',
-                day: 'flex-1 p-0.5',
-              }}
-              components={{
-                DayButton: (props) => {
-                  const log = getLogForDate(props.day.date)
-                  const isToday = isSameDay(props.day.date, new Date())
+            <div className="select-none">
+              {/* Weekday Headers */}
+              <div className="grid grid-cols-7 border-b bg-muted/20">
+                {WEEKDAYS.map((day, index) => (
+                  <div
+                    key={day}
+                    className={cn(
+                      'py-2 text-center text-xs font-medium text-muted-foreground',
+                      index === 0 && 'text-red-500'
+                    )}
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar Grid */}
+              <div className="grid grid-cols-7">
+                {calendarDays.map((day, index) => {
+                  const isCurrentMonth = isSameMonth(day, currentMonth)
+                  const isToday = isSameDay(day, new Date())
+                  const log = getLogForDate(day)
+                  const isSunday = day.getDay() === 0
 
                   return (
                     <button
-                      onClick={() => handleDayClick(props.day.date)}
+                      key={day.toISOString()}
+                      onClick={() => handleDayClick(day)}
                       className={cn(
-                        'w-full h-14 sm:h-16 rounded-lg flex flex-col items-center justify-center gap-0.5',
-                        'hover:bg-accent hover:text-accent-foreground transition-colors',
-                        'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-                        isToday && 'ring-2 ring-primary',
-                        log && 'bg-primary/10'
+                        'relative flex flex-col items-center justify-start p-1 min-h-20 sm:min-h-24 border-b border-r transition-colors',
+                        'hover:bg-accent/50 focus:outline-none focus:bg-accent/50',
+                        index % 7 === 6 && 'border-r-0',
+                        !isCurrentMonth && 'bg-muted/20',
                       )}
                     >
-                      <span className={cn(
-                        'text-sm',
-                        isToday && 'font-bold text-primary'
-                      )}>
-                        {props.day.date.getDate()}
-                      </span>
-                      {log && (
-                        <span className="text-[10px] sm:text-xs text-primary font-medium">
-                          {Number(log.hours).toFixed(1)}h
-                        </span>
+                      {/* Date Number */}
+                      <div
+                        className={cn(
+                          'flex items-center justify-center w-7 h-7 rounded-full text-sm mb-1',
+                          isToday && 'bg-primary text-primary-foreground font-bold',
+                          !isToday && isSunday && isCurrentMonth && 'text-red-500',
+                          !isCurrentMonth && 'text-muted-foreground/50'
+                        )}
+                      >
+                        {format(day, 'd')}
+                      </div>
+
+                      {/* Time Log Display */}
+                      {log && isCurrentMonth && (
+                        <div className={cn(
+                          'w-full px-1'
+                        )}>
+                          <div className={cn(
+                            'rounded-md px-1.5 py-0.5 text-xs font-medium text-center truncate',
+                            'bg-primary/15 text-primary border border-primary/20'
+                          )}>
+                            {Number(log.hours).toFixed(1)}h
+                          </div>
+                        </div>
                       )}
                     </button>
                   )
-                },
-              }}
-            />
+                })}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
 
+      {/* Log Time Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -270,7 +310,7 @@ export function LoggerContent({ userId }: LoggerContentProps) {
               Log thời gian
             </DialogTitle>
             <DialogDescription>
-              {selectedDate && format(selectedDate, 'EEEE, dd/MM/yyyy', { locale: vi })}
+              {selectedDate && format(selectedDate, 'EEEE, dd MMMM yyyy', { locale: vi })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -285,6 +325,7 @@ export function LoggerContent({ userId }: LoggerContentProps) {
                 placeholder="Ví dụ: 8"
                 value={hours}
                 onChange={(e) => setHours(e.target.value)}
+                className="text-lg h-12"
                 autoFocus
               />
               <p className="text-xs text-muted-foreground">

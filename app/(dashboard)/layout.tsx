@@ -1,10 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Header } from '@/components/shared/Header'
-import { LoggerContent } from '@/components/logger/LoggerContent'
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
+import { AppSidebar } from '@/components/shared/AppSidebar'
+import { Separator } from '@/components/ui/separator'
 import { Profile } from '@/lib/types'
 
-export default async function LoggerPage() {
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const supabase = await createClient()
 
   const {
@@ -43,11 +48,17 @@ export default async function LoggerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Header profile={profile as Profile} />
-      <main className="container mx-auto max-w-4xl px-4 py-6">
-        <LoggerContent userId={user.id} />
-      </main>
-    </div>
+    <SidebarProvider>
+      <AppSidebar profile={profile as Profile} />
+      <SidebarInset>
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+        </header>
+        <main className="flex-1 overflow-auto p-4 md:p-6">
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

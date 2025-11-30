@@ -13,9 +13,17 @@ export default async function LoggerPage() {
     redirect('/')
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const isAdmin = profile?.role === 'admin'
+
   return (
     <div className="mx-auto max-w-4xl">
-      <LoggerContent userId={user.id} />
+      <LoggerContent userId={user.id} isAdmin={isAdmin} />
     </div>
   )
 }
